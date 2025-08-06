@@ -119,6 +119,15 @@ export const autocompleteOptionsSchema = z.object({
   prefixPercentage: z.number().optional(),
   template: z.string().optional(),
   onlyMyCode: z.boolean().optional(),
+  useCache: z.boolean().optional(),
+  useImports: z.boolean().optional(),
+  useRecentlyEdited: z.boolean().optional(),
+  useRecentlyOpened: z.boolean().optional(),
+  experimental_includeClipboard: z.boolean().optional(),
+  experimental_includeRecentlyVisitedRanges: z.boolean().optional(),
+  experimental_includeRecentlyEditedRanges: z.boolean().optional(),
+  experimental_includeDiff: z.boolean().optional(),
+  experimental_enableStaticContextualization: z.boolean().optional(),
 });
 
 /** Prompt templates use Handlebars syntax */
