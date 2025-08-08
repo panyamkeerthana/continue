@@ -131,15 +131,49 @@ const isFileInDirectory = (
 /**
  * Checks if a rule is a root-level rule (.continue directory or no file path)
  */
-const isRootLevelRule = (rule: RuleWithSource): boolean => {
-  return !rule.ruleFile || rule.ruleFile.includes(".continue/"); // ruleFile path is absolute - hence we need to check for it in between
+
+const isRootLevelRule = (
+  rule: RuleWithSource,
+  workspaceDirs: string[],
+): boolean => {
+  if (!rule.ruleFile) {
+    return true;
+  }
+
+  // Normalize rule file path
+  const normalizedRulePath = rule.ruleFile
+    .replace(/\\/g, "/")
+    .replace(/^file:\/\//, "");
+
+  // Check if the rule is in the .continue directory
+  for (const workspaceDir of workspaceDirs) {
+    const normalizedWorkspaceDir = workspaceDir
+      .replace(/\\/g, "/")
+      .replace(/^file:\/\//, "");
+
+    // Path comparison to check if the rule path contains the workspace + .continue pattern
+    const workspaceContinuePattern = `${normalizedWorkspaceDir}/.continue/`;
+
+    if (normalizedRulePath.startsWith(workspaceContinuePattern)) {
+      return true;
+    }
+
+    // Relative path check for cases where the rule path might be relative to the workspace
+    if (normalizedRulePath.startsWith(".continue/")) {
+      return true;
+    }
+  }
+  return false;
 };
 
 /**
  * Determines if a rule should be considered global and always applied
  * This includes rules with alwaysApply: true OR root-level rules with no globs
  */
-const isGlobalRule = (rule: RuleWithSource): boolean => {
+const isGlobalRule = (
+  rule: RuleWithSource,
+  workspaceDirs: string[],
+): boolean => {
   // Rules with alwaysApply: true are always global
   if (rule.alwaysApply === true) {
     return true;
@@ -147,7 +181,7 @@ const isGlobalRule = (rule: RuleWithSource): boolean => {
 
   // Root-level rules with no globs or regex are implicitly global
   if (
-    isRootLevelRule(rule) &&
+    isRootLevelRule(rule, workspaceDirs) &&
     !rule.globs &&
     !rule.regex &&
     rule.alwaysApply !== false
@@ -206,6 +240,7 @@ export const shouldApplyRule = (
   filePaths: string[],
   rulePolicies: RulePolicies = {},
   fileContents: Record<string, string> = {},
+  workspaceDirs: string[] = [],
 ): boolean => {
   const policy = rulePolicies[rule.name || ""];
 
@@ -215,7 +250,7 @@ export const shouldApplyRule = (
   }
 
   // If it's a global rule, always apply it regardless of file paths
-  if (isGlobalRule(rule)) {
+  if (isGlobalRule(rule, workspaceDirs)) {
     return true;
   }
 
@@ -227,7 +262,7 @@ export const shouldApplyRule = (
   }
 
   // Check if this is a root-level rule (in .continue directory or no file path)
-  const isRootRule = isRootLevelRule(rule);
+  const isRootRule = isRootLevelRule(rule, workspaceDirs);
 
   // For non-root rules, we need to check if any files are in the rule's directory
   if (!isRootRule && rule.ruleFile) {
@@ -277,6 +312,7 @@ export const getApplicableRules = (
   rules: RuleWithSource[],
   contextItems: ContextItemWithId[],
   rulePolicies: RulePolicies = {},
+  workspaceDirs: string[] = [],
 ): RuleWithSource[] => {
   // Get file paths from message and context for rule matching
   const filePathsFromMessage = userMessage
@@ -318,7 +354,13 @@ export const getApplicableRules = (
   // Apply shouldApplyRule to all rules - this will handle global rules, rule policies,
   // and path matching in a consistent way
   const applicableRules = rules.filter((rule) =>
-    shouldApplyRule(rule, allFilePaths, rulePolicies, fileContents),
+    shouldApplyRule(
+      rule,
+      allFilePaths,
+      rulePolicies,
+      fileContents,
+      workspaceDirs,
+    ),
   );
 
   return applicableRules;
@@ -334,12 +376,14 @@ export const getSystemMessageWithRules = ({
   availableRules,
   contextItems,
   rulePolicies = {},
+  workspaceDirs = [],
 }: {
   baseSystemMessage?: string;
   userMessage: UserChatMessage | ToolResultChatMessage | undefined;
   availableRules: RuleWithSource[];
   contextItems: ContextItemWithId[];
   rulePolicies?: RulePolicies;
+  workspaceDirs?: string[];
 }): {
   systemMessage: string;
   appliedRules: RuleWithSource[];
@@ -349,6 +393,7 @@ export const getSystemMessageWithRules = ({
     availableRules,
     contextItems,
     rulePolicies,
+    workspaceDirs,
   );
   let systemMessage = baseSystemMessage ?? "";
 

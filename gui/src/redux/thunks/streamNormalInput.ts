@@ -3,7 +3,6 @@ import { LLMFullCompletionOptions, ModelDescription, Tool } from "core";
 import { getRuleId } from "core/llm/rules/getSystemMessageWithRules";
 import { ToCoreProtocol } from "core/protocol";
 import { BuiltInToolNames } from "core/tools/builtIn";
-import posthog from "posthog-js";
 import { selectActiveTools } from "../selectors/selectActiveTools";
 import { selectUseSystemMessageTools } from "../selectors/selectUseSystemMessageTools";
 import { selectSelectedChatModel } from "../slices/configSlice";
@@ -27,9 +26,9 @@ import { addSystemMessageToolsToSystemMessage } from "core/tools/systemMessageTo
 import { interceptSystemToolCalls } from "core/tools/systemMessageTools/interceptSystemToolCalls";
 import { SystemMessageToolCodeblocksFramework } from "core/tools/systemMessageTools/toolCodeblocks";
 import { selectCurrentToolCalls } from "../selectors/selectToolCalls";
+import { DEFAULT_TOOL_SETTING } from "../slices/uiSlice";
 import { getBaseSystemMessage } from "../util/getBaseSystemMessage";
 import { callToolById } from "./callToolById";
-import { DEFAULT_TOOL_SETTING } from "../slices/uiSlice";
 /**
  * Handles the execution of tool calls that may be automatically accepted.
  * Sets all tools as generated first, then executes auto-approved tool calls.
@@ -194,6 +193,17 @@ export const streamNormalInput = createAsyncThunk<
       const { id, ...messageWithoutId } = item.message;
       return { ...item, message: messageWithoutId };
     });
+    // Get workspace directories
+    const workspaceDirsResponse = await extra.ideMessenger.request(
+      "getWorkspaceDirs",
+      undefined,
+    );
+
+    // Extract the content from the response
+    const workspaceDirs =
+      workspaceDirsResponse.status === "success"
+        ? workspaceDirsResponse.content
+        : [];
 
     const { messages, appliedRules, appliedRuleIndex } = constructMessages(
       withoutMessageIds,
@@ -201,6 +211,7 @@ export const streamNormalInput = createAsyncThunk<
       state.config.config.rules,
       state.ui.ruleSettings,
       systemToolsFramework,
+      workspaceDirs,
     );
 
     // TODO parallel tool calls will cause issues with this

@@ -32,6 +32,7 @@ export function constructMessages(
   availableRules: RuleWithSource[],
   rulePolicies: RulePolicies,
   useSystemToolsFramework?: SystemMessageToolsFramework,
+  workspaceDirs?: string[],
 ): {
   messages: ChatMessage[];
   appliedRules: RuleWithSource[];
@@ -188,6 +189,7 @@ export function constructMessages(
     userMessage: lastUserOrToolMsg,
     contextItems: rulesContextItems,
     rulePolicies,
+    workspaceDirs,
   });
 
   // Append conversation summary to system message if it exists
